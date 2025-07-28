@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+# ytmusic: ultra-fast YouTube music downloader using yt-dlp + fzf
+# Author: Shin
+
+# Dependencies: yt-dlp, fzf, ffmpeg, xclip (optional), aria2 (optional)
+
+query="$(fzf --prompt='🎵 Search YouTube: ' --print-query --height=40% --layout=reverse --border <<< '')"
+[ -z "$query" ] && exit 0
+
+# YouTube search via yt-dlp
+echo "🔍 Searching: $query..."
+results=$(yt-dlp "ytsearch10:$query" --get-title --get-id --no-warnings --no-playlist --no-call-home --default-search "ytsearch" 2>/dev/null | paste - - | sed 's/^/🎶 /')
+
+selected=$(echo "$results" | fzf --prompt='🎧 Choose track: ' --height=60% --reverse --border)
+[ -z "$selected" ] && exit 0
+
+video_id=$(echo "$selected" | awk '{print $NF}')
+video_url="https://www.youtube.com/watch?v=$video_id"
+
+echo "⬇️ Downloading: $video_url..."
+
+# Output directory
+outdir="$HOME/Music"
+mkdir -p "$outdir"
+
+yt-dlp \
+  -x --audio-format mp3 --audio-quality 0 \
+  --embed-thumbnail \
+  --embed-metadata \
+  --add-metadata \
+  --output "$outdir/%(title).50s.%(ext)s" \
+  --no-playlist \
+  --no-mtime \
+  --no-call-home \
+  --no-warnings \
+  --quiet \
+  --progress \
+  --sponsorblock-remove all \
+  --external-downloader aria2c \
+  --external-downloader-args "-x 16 -s 16 -k 1M" \
+  "$video_url"
+
+echo "✅ Done: Saved to $outdir"
+

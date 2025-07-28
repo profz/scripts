@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Prompt for a search query
+query=$(printf "" | fzf --prompt="Search music: " --print-query --no-select-1 --no-sort --height=10)
+[[ -z "$query" ]] && exit 1
+
+# Run search using yt-dlp
+results=$(yt-dlp "ytsearch20:${query}" \
+  --print "%(title)s | %(uploader)s | %(duration_string)s | %(webpage_url)s")
+
+selected=$(printf "%s\n" "$results" | fzf --preview="echo {}" --height=20)
+url=$(echo "$selected" | awk -F' | ' '{print $NF}')
+
+[[ -z "$url" ]] && exit 1
+
+# Download audio with cover art and metadata
+yt-dlp "$url" \
+  --extract-audio \
+  --audio-format mp3 \
+  --embed-thumbnail \
+  --embed-metadata \
+  -o "$HOME/Music/%(title)s.%(ext)s"
+
+notify-send "Download complete" "$(basename "$url")"
+

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+# FASTEST YouTube Music Downloader using YouTubei API + fzf + yt-dlp
+# Author: Shin
+# Requires: curl, jq, yt-dlp, aria2c, ffmpeg
+
+# YouTube Search via youtubei API (instant)
+search_term=$(fzf --prompt='🔍 Search Track: ' --print-query --height=40% --layout=reverse --border <<< "")
+[ -z "$search_term" ] && exit 0
+
+query=$(jq -n --arg q "$search_term" '{context:{client:{clientName:"WEB", clientVersion:"2.20210721.00.00"}}, query:$q}')
+results=$(curl -s "https://www.youtube.com/youtubei/v1/search?key=AIzaSyB28bNHWuntf8CwDv33UKIVes8tReAsRUw" \
+    -H 'Content-Type: application/json' \
+    -H 'User-Agent: Mozilla/5.0' \
+    --data-raw "$query")
+
+# Parse top 10 video titles + videoIds
+entries=$(echo "$results" | jq -r '
+  .contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents[0].itemSectionRenderer.contents[]
+  | select(.videoRenderer)
+  | .videoRenderer as $v
+  | "\($v.title.runs[0].text) [\($v.videoId)]"
+' | head -n 10)
+
+choice=$(echo "$entries" | fzf --prompt='🎧 Choose: ' --height=50% --reverse --border)
+[ -z "$choice" ] && exit 0
+
+video_id=$(echo "$choice" | grep -oP '\[\K[^\]]+')
+video_url="https://www.youtube.com/watch?v=$video_id"
+outdir="$HOME/Music"
+mkdir -p "$outdir"
+
+# Download fast with yt-dlp
+yt-dlp \
+  -x --audio-format mp3 --audio-quality 0 \
+  --embed-thumbnail \
+  --embed-metadata \
+  --add-metadata \
+  --output "$outdir/%(title).50s.%(ext)s" \
+  --no-playlist --no-call-home \
+  --quiet --progress --no-warnings \
+  --sponsorblock-remove all \
+  --external-downloader aria2c \
+  --external-downloader-args "-x 16 -s 16 -k 1M" \
+  "$video_url"
+
+echo "✅ Downloaded to $outdir"
+

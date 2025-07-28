@@ -1,0 +1,23 @@
+#!/bin/bash
+
+status=$(mpc status | grep -o '\[playing\]\|\[paused\]')
+title=$(mpc current)
+
+case "$status" in
+    "[playing]")
+        icon="▶️"
+        ;;
+    "[paused]")
+        icon="⏸️"
+        ;;
+    *)
+        icon=""
+        ;;
+esac
+
+if [[ -n "$title" ]]; then
+    echo "$icon $title"
+else
+    echo ""
+fi
+

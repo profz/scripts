@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# get volume
+vol=$(pamixer --get-volume-human)
+
+# icon based on state
+if [[ "$vol" == *"muted"* ]]; then
+    icon="🔇"
+else
+    icon="🔊"
+fi
+
+echo "$icon $vol"
+
